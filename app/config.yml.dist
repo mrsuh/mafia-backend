@@ -1,0 +1,5 @@
+server.listen: 127.0.0.1:9999
+
+log:
+  level: 5 # 5 - Debug, 4 -Info, 3 - Warning, 2 - Error, 1 - Fatal, 0 - Panic
+  file: /Users/newuser/web/go/src/mafia-backend/log/out.log
