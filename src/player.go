@@ -17,11 +17,11 @@ const ROLE_DOCTOR = 3
 const ROLE_GIRL = 4
 const ROLE_SHERIFF = 5
 
-const STATUS_OK = 1
-const STATUS_ERR = 2
+const STATUS_OK = "ok"
+const STATUS_ERR = "err"
 
 type Message struct {
-	Status    int         `json:"status"`
+	Status    string         `json:"status"`
 	Iteration int         `json:"iteration"`
 	Event     string      `json:"event"`
 	Action    string      `json:"action"`
@@ -162,7 +162,7 @@ func (p *Player) readLoop() {
 			break
 		}
 
-		log.Debugf("rcv msg %s %#v", p.Id(), msg)
+		log.Debugf("rcv msg %d %#v", p.Id(), msg)
 
 		p.OnMessage(msg)
 	}
@@ -250,13 +250,13 @@ func (p *Player) writeLoop() {
 				p.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			w, err := p.conn.NextWriter(websocket.BinaryMessage)
+			w, err := p.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
 				log.Errorf("send message : error can't get writer connection id: %d, msg: %#v, err: %v", p.Id(), msg, err)
 				return
 			}
 
-			log.Debugf("snd msg %s %#v", p.Id, msg)
+			log.Debugf("snd msg %d %#v", p.Id(), msg)
 
 			if _, err = w.Write(message); err != nil {
 				log.Infof("send message : error on w.Write() id: %d, msg: %#v, err: %v", p.Id(), msg, err)

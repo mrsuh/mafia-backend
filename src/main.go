@@ -37,13 +37,13 @@ func init() {
 		fmt.Fprintf(os.Stderr, "Read config file: %v \n", err)
 		os.Exit(1)
 	}
-	f, err := os.OpenFile(config.GetString("log.file"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0660)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Open log file error %v\n", err)
-		os.Exit(1)
-	}
+	//f, err := os.OpenFile(config.GetString("log.file"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0660)
+	//if err != nil {
+	//	fmt.Fprintf(os.Stderr, "Open log file error %v\n", err)
+	//	os.Exit(1)
+	//}
 	log.SetFormatter(&LogFormatter{})
-	log.SetOutput(f)
+	log.SetOutput(os.Stdout)
 	log.SetLevel(log.Level(config.GetInt("log.level")))
 }
 

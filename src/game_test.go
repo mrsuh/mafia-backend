@@ -4,21 +4,7 @@ import (
 	"testing"
 	"time"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"os"
 )
-
-func loggerInit() {
-
-	f, err := os.OpenFile("/Users/newuser/web/go/src/mafia-backend/log/out.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0660)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Open log file error %v\n", err)
-		os.Exit(1)
-	}
-	log.SetFormatter(&LogFormatter{})
-	log.SetOutput(f)
-	log.SetLevel(log.Level(5))
-}
 
 func (p *Player) Run(t *testing.T) {
 	go func(){
