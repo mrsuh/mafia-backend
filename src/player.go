@@ -17,11 +17,11 @@ const ROLE_DOCTOR = 3
 const ROLE_GIRL = 4
 const ROLE_SHERIFF = 5
 
-const STATUS_OK = 1
-const STATUS_ERR = 2
+const STATUS_OK = "ok"
+const STATUS_ERR = "err"
 
 type Message struct {
-	Status    int         `json:"status"`
+	Status    string      `json:"status"`
 	Iteration int         `json:"iteration"`
 	Event     string      `json:"event"`
 	Action    string      `json:"action"`
@@ -38,26 +38,28 @@ func NewEventMessage(event IEvent, action string) *Message {
 }
 
 type Player struct {
-	id        int
-	name      string
-	role      int
-	game      *Game
-	master    bool
-	addr      string
-	version   string
-	device    string
-	url       string
-	createdAt time.Time
-	conn      *websocket.Conn
-	out       bool
-	send      chan []byte
+	id                 int
+	name               string
+	role               int
+	game               *Game
+	master             bool
+	addr               string
+	version            string
+	device             string
+	url                string
+	createdAt          time.Time
+	conn               *websocket.Conn
+	out                bool
+	send               chan []byte
+	lastSendMessage    *Message
+	lastReceiveMessage *Message
 }
 
 func NewPlayer() *Player {
 	player := &Player{
 		id:        rand.Intn(999999999),
 		createdAt: time.Now(),
-		send:      make(chan []byte, 0),
+		send:      make(chan []byte, 5),
 		out:       false,
 	}
 
@@ -70,6 +72,8 @@ func (p *Player) SendMessage(message *Message) {
 			log.Errorf("Send message id: %d, err: %v", p.Id, err)
 		}
 	}()
+
+	p.lastSendMessage = message
 
 	msg, err := json.Marshal(message)
 
@@ -162,7 +166,7 @@ func (p *Player) readLoop() {
 			break
 		}
 
-		log.Debugf("rcv msg %s %#v", p.Id(), msg)
+		log.Debugf("rcv msg %d %#v", p.Id(), msg)
 
 		p.OnMessage(msg)
 	}
@@ -179,16 +183,58 @@ func (p *Player) OnMessage(msg *Message) {
 			p.game = game
 			p.master = true
 			break
+		case ACTION_RECONNECT:
+			data := msg.Data.(map[string]interface{})
+			gameId := int(data["game"].(float64))
+			playerId := int(data["player"].(float64))
+
+			game, ok := Games[gameId]
+
+			if !ok {
+				rmsg := &Message{
+					Status: STATUS_ERR,
+					Data:   "invalid gameId",
+				}
+				log.Errorf("Invalid game id %v", gameId)
+				p.SendMessage(rmsg)
+				break
+			}
+
+			invalidPlayer := game.Players.FindOneById(playerId)
+
+			if invalidPlayer == nil {
+				rmsg := &Message{
+					Status: STATUS_ERR,
+					Data:   "invalid playerId",
+				}
+				log.Errorf("Invalid player id %v", playerId)
+				p.SendMessage(rmsg)
+				break
+			}
+
+			p.id = invalidPlayer.id
+			p.name = invalidPlayer.name
+			p.role = invalidPlayer.role
+			p.game = invalidPlayer.game
+			p.master = invalidPlayer.master
+			p.lastSendMessage = invalidPlayer.lastSendMessage
+			p.lastReceiveMessage = invalidPlayer.lastReceiveMessage
+
+			game.Players.Remove(invalidPlayer)
+			game.Players.Add(p)
+
+			log.Debugf("MSG %#v", p.lastSendMessage)
+			if p.lastSendMessage != nil {
+				log.Debugf("MSG %#v", p.lastSendMessage)
+				p.SendMessage(p.lastSendMessage)
+			}
+
+			break
 		case ACTION_JOIN:
 			data := msg.Data.(map[string]interface{})
 			gameId := int(data["game"].(float64))
 
 			game, ok := Games[gameId]
-
-			if ok {
-				p.game = game
-				break
-			}
 
 			if !ok {
 				rmsg := &Message{
@@ -197,6 +243,9 @@ func (p *Player) OnMessage(msg *Message) {
 				}
 				p.SendMessage(rmsg)
 			}
+
+			p.game = game
+
 			break
 		default:
 			rmsg := &Message{
@@ -212,6 +261,8 @@ func (p *Player) OnMessage(msg *Message) {
 		fmt.Errorf("Player has not gameId")
 		return
 	}
+
+	p.lastReceiveMessage = msg
 
 	actions := p.game.Event.Actions()
 	if action, ok := actions[msg.Action]; ok && p.Game() != nil {
@@ -250,13 +301,13 @@ func (p *Player) writeLoop() {
 				p.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			w, err := p.conn.NextWriter(websocket.BinaryMessage)
+			w, err := p.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
 				log.Errorf("send message : error can't get writer connection id: %d, msg: %#v, err: %v", p.Id(), msg, err)
 				return
 			}
 
-			log.Debugf("snd msg %s %#v", p.Id, msg)
+			log.Debugf("snd msg %d %#v", p.Id(), msg)
 
 			if _, err = w.Write(message); err != nil {
 				log.Infof("send message : error on w.Write() id: %d, msg: %#v, err: %v", p.Id(), msg, err)
@@ -346,4 +397,13 @@ func (p *Players) FindAllWithOut() []*Player {
 
 func (p *Players) Add(player *Player) {
 	p.data = append(p.data, player)
+}
+
+func (p *Players) Remove(player *Player) {
+	for index, pl := range p.data {
+		if pl.Id() == player.Id() {
+			p.data = append(p.data[:index], p.data[index+1:]...)
+			break
+		}
+	}
 }

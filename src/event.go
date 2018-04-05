@@ -28,6 +28,7 @@ const EVENT_GREET_MAFIA = "greet_mafia"
 const EVENT_GREET_CITIZENS = "greet_citizen"
 
 const ACTION_CREATE = "create"
+const ACTION_RECONNECT = "reconnect"
 const ACTION_JOIN = "join"
 const ACTION_START = "start"
 const ACTION_END = "end"
@@ -306,7 +307,7 @@ func (event *AcceptEvent) FindAcceptedById(id int) *Player {
 func (event *AcceptEvent) Process(players *Players, history *EventHistory) error {
 	event.status = IN_PROCESS
 	for _, player := range players.FindAll() {
-		rmsg := NewEventMessage(event, ACTION_ACCEPT)
+		rmsg := NewEventMessage(event, event.action)
 		player.SendMessage(rmsg)
 	}
 
@@ -354,7 +355,7 @@ func (event *CourtEvent) Process(players *Players, history *EventHistory) error 
 		playersInfo = append(playersInfo, playerInfo)
 	}
 
-	response := NewEventMessage(event, ACTION_CREATE)
+	response := NewEventMessage(event, ACTION_PLAYERS)
 	response.Data = playersInfo
 
 	for _, player := range players.FindAll() {
@@ -366,8 +367,7 @@ func (event *CourtEvent) Process(players *Players, history *EventHistory) error 
 
 func (event *CourtEvent) VoteAction(players *Players, history *EventHistory, player *Player, msg *Message) error {
 
-	data := msg.Data.(map[string]interface{})
-	voteId := data["player_id"].(int)
+	voteId := msg.Data.(int)
 	vote := players.FindOneById(voteId)
 
 	if vote == nil {
@@ -402,7 +402,7 @@ func NewCourtResultEvent(iter int) *CourtResultEvent {
 	e.status = NOT_IN_PROCESS
 	e.event = EVENT_COURT_RESULT
 	e.iteration = iter
-	e.AddAction(ACTION_OUT, e.AcceptAction)
+	e.AddAction(ACTION_ACCEPT, e.AcceptAction)
 	e.accepted = make([]*Player, 0)
 	return e
 }
@@ -458,11 +458,22 @@ func (event *CourtResultEvent) Process(players *Players, history *EventHistory) 
 
 	rmsg := NewEventMessage(event, ACTION_OUT)
 	rmsg.Data = map[string]interface{}{"id": courtCandidate.Id(), "username": courtCandidate.Name()}
-	for _, player := range players.FindAll() {
+
+	playersFor := players.FindAll()
+	courtCandidate.SetOut(true)
+	for _, player := range playersFor {
 		player.SendMessage(rmsg)
 	}
 
-	courtCandidate.SetOut(true)
+	return nil
+}
+
+func (event *CourtResultEvent) AcceptAction(players *Players, history *EventHistory, player *Player, msg *Message) error {
+	event.AddAccepted(player)
+
+	if event.IsAllAccepted(players.FindAll()) {
+		event.SetStatus(PROCESSED)
+	}
 
 	return nil
 }
@@ -517,14 +528,13 @@ func (event *DoctorEvent) ChoiceAction(players *Players, history *EventHistory, 
 	if player.Role() != ROLE_DOCTOR {
 		rmsg := NewEventMessage(event, ACTION_CHOICE)
 		rmsg.Status = STATUS_ERR
-		err := "player have wrong role to this action"
+		err := "player have wrong role for this action"
 		rmsg.Data = err
 		player.SendMessage(rmsg)
 		return fmt.Errorf(err)
 	}
 
-	data := msg.Data.(map[string]interface{})
-	choiceId := data["player_id"].(int)
+	choiceId := msg.Data.(int)
 	choice := players.FindOneById(choiceId)
 
 	if choice == nil {
@@ -567,12 +577,40 @@ func NewGameEvent() *GameEvent {
 	e := &GameEvent{}
 	e.Event = NewEvent()
 	e.SetName(EVENT_GAME)
-	e.AddAction(ACTION_CREATE, e.JoinAction)
+	e.AddAction(ACTION_CREATE, e.CreateAction)
 	e.AddAction(ACTION_JOIN, e.JoinAction)
 	e.AddAction(ACTION_START, e.StartAction)
-	e.AddAction(ACTION_END, e.EndAction)
 	return e
 }
+
+func (event *GameEvent) CreateAction(players *Players, history *EventHistory, player *Player, msg *Message) error {
+
+	data := msg.Data.(map[string]interface{})
+
+	username := data["username"].(string)
+
+	if players.FindOneByUsername(username) != nil {
+		rmsg := NewEventMessage(event, ACTION_JOIN)
+		rmsg.Status = STATUS_ERR
+		err := "username already exists"
+		rmsg.Data = err
+		player.SendMessage(rmsg)
+		return fmt.Errorf(err)
+	}
+
+	player.SetName(username)
+	players.Add(player)
+
+	response := NewEventMessage(event, ACTION_CREATE)
+	response.Data = map[string]interface{}{"username": player.Name(), "id": player.Id(), "game": player.Game().Id}
+
+	player.SendMessage(response)
+
+	event.sendPlayersInfo(players)
+
+	return nil
+}
+
 
 func (event *GameEvent) JoinAction(players *Players, history *EventHistory, player *Player, msg *Message) error {
 
@@ -597,6 +635,12 @@ func (event *GameEvent) JoinAction(players *Players, history *EventHistory, play
 
 	player.SendMessage(response)
 
+	event.sendPlayersInfo(players)
+
+	return nil
+}
+
+func (event *GameEvent) sendPlayersInfo(players *Players) {
 	playersInfo := make([]interface{}, 0)
 	for _, player := range players.FindAll() {
 		playerInfo := map[string]interface{}{
@@ -611,8 +655,6 @@ func (event *GameEvent) JoinAction(players *Players, history *EventHistory, play
 	for _, player := range players.FindAll() {
 		player.SendMessage(responseForAll)
 	}
-
-	return nil
 }
 
 func (event *GameEvent) StartAction(players *Players, history *EventHistory, player *Player, msg *Message) error {
@@ -621,7 +663,7 @@ func (event *GameEvent) StartAction(players *Players, history *EventHistory, pla
 		rmsg := NewEventMessage(event, ACTION_JOIN)
 		rmsg.Status = STATUS_ERR
 		err := "you have not rights to start game"
-		rmsg.Data = map[string]interface{}{"err": err}
+		rmsg.Data = err
 		player.SendMessage(rmsg)
 		return fmt.Errorf(err)
 	}
@@ -630,24 +672,9 @@ func (event *GameEvent) StartAction(players *Players, history *EventHistory, pla
 		rmsg := NewEventMessage(event, ACTION_JOIN)
 		rmsg.Status = STATUS_ERR
 		err := "too few players to start game"
-		rmsg.Data = map[string]interface{}{"err": err}
+		rmsg.Data = err
 		player.SendMessage(rmsg)
 		return fmt.Errorf(err)
-	}
-
-	event.SetStatus(PROCESSED)
-
-	return nil
-}
-
-func (event *GameEvent) EndAction(players *Players, history *EventHistory, player *Player, msg *Message) error {
-
-	if !player.Master() {
-		return fmt.Errorf("you can not start game")
-	}
-
-	if len(players.FindAll()) < 3 {
-		return fmt.Errorf("too few players")
 	}
 
 	event.SetStatus(PROCESSED)
@@ -705,14 +732,13 @@ func (event *GirlEvent) ChoiceAction(players *Players, history *EventHistory, pl
 	if player.Role() != ROLE_GIRL {
 		rmsg := NewEventMessage(event, ACTION_CHOICE)
 		rmsg.Status = STATUS_ERR
-		err := "player have wrong role to this action"
+		err := "player have wrong role for this action"
 		rmsg.Data = err
 		player.SendMessage(rmsg)
 		return fmt.Errorf(err)
 	}
 
-	data := msg.Data.(map[string]interface{})
-	choiceId := data["player_id"].(int)
+	choiceId := msg.Data.(int)
 	choice := players.FindOneById(choiceId)
 
 	if choice == nil {
@@ -787,15 +813,13 @@ func (event *GreetCitizensEvent) Process(players *Players, history *EventHistory
 		player.SendMessage(rmsg)
 	}
 
-	event.SetStatus(PROCESSED)
-
 	return nil
 }
 
 func (event *GreetCitizensEvent) AcceptAction(players *Players, history *EventHistory, player *Player, msg *Message) error {
 	event.AddAccepted(player)
 
-	if event.IsAllAccepted(players.FindByRole(ROLE_MAFIA)) {
+	if event.IsAllAccepted(players.FindAll()) {
 		event.SetStatus(PROCESSED)
 	}
 
@@ -876,7 +900,21 @@ func NewGreetMafiaEvent(iter int) *GreetMafiaEvent {
 
 func (event *GreetMafiaEvent) Process(players *Players, history *EventHistory) error {
 	event.status = IN_PROCESS
-	rmsg := NewEventMessage(event, ACTION_ROLE)
+	rmsg := NewEventMessage(event, ACTION_PLAYERS)
+
+	playersInfo := make([]interface{}, 0)
+	for _, player := range players.FindAll() {
+		if player.Role() != ROLE_MAFIA {
+			continue
+		}
+		playerInfo := map[string]interface{}{
+			"username": player.Name(),
+			"id":       player.Id(),
+		}
+		playersInfo = append(playersInfo, playerInfo)
+	}
+	rmsg.Data = playersInfo
+
 	for _, player := range players.FindByRole(ROLE_MAFIA) {
 		player.SendMessage(rmsg)
 	}
@@ -942,7 +980,7 @@ func (event *MafiaEvent) VoteAction(players *Players, history *EventHistory, pla
 	if player.Role() != ROLE_MAFIA {
 		rmsg := NewEventMessage(event, ACTION_CHOICE)
 		rmsg.Status = STATUS_ERR
-		err := "player have wrong role to this action"
+		err := "player have wrong role for this action"
 		rmsg.Data = err
 		player.SendMessage(rmsg)
 		return fmt.Errorf(err)
@@ -1018,7 +1056,7 @@ func NewNightResultEvent(iter int) *NightResultEvent {
 	e.status = NOT_IN_PROCESS
 	e.event = EVENT_NIGHT_RESULT
 	e.iteration = iter
-	e.AddAction(ACTION_OUT, e.AcceptAction)
+	e.AddAction(ACTION_ACCEPT, e.AcceptAction)
 	e.accepted = make([]*Player, 0)
 	return e
 }
@@ -1141,14 +1179,13 @@ func (event *SheriffEvent) ChoiceAction(players *Players, history *EventHistory,
 	if player.Role() != ROLE_SHERIFF {
 		rmsg := NewEventMessage(event, ACTION_CHOICE)
 		rmsg.Status = STATUS_ERR
-		err := "player have wrong role to this action"
+		err := "player have wrong role for this action"
 		rmsg.Data = err
 		player.SendMessage(rmsg)
 		return fmt.Errorf(err)
 	}
 
-	data := msg.Data.(map[string]interface{})
-	choiceId := data["player_id"].(int)
+	choiceId := msg.Data.(int)
 	choice := players.FindOneById(choiceId)
 
 	if choice == nil {
@@ -1211,7 +1248,7 @@ func (event *SheriffResultEvent) AcceptAction(players *Players, history *EventHi
 	if player.Role() != ROLE_SHERIFF {
 		rmsg := NewEventMessage(event, ACTION_ACCEPT)
 		rmsg.Status = STATUS_ERR
-		err := "player have wrong role to this action"
+		err := "player have wrong role for this action"
 		rmsg.Data = err
 		player.SendMessage(rmsg)
 		return fmt.Errorf(err)

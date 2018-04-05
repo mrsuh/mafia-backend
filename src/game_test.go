@@ -4,32 +4,32 @@ import (
 	"testing"
 	"time"
 	"fmt"
-	log "github.com/sirupsen/logrus"
-	"os"
+	"strconv"
+	"encoding/json"
 )
-
-func loggerInit() {
-
-	f, err := os.OpenFile("/Users/newuser/web/go/src/mafia-backend/log/out.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0660)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Open log file error %v\n", err)
-		os.Exit(1)
-	}
-	log.SetFormatter(&LogFormatter{})
-	log.SetOutput(f)
-	log.SetLevel(log.Level(5))
-}
 
 func (p *Player) Run(t *testing.T) {
 	go func(){
 		for {
 			select {
 			case message := <-p.send:
-				//t.Logf("%s", message)
 				fmt.Sprint(message)
 			}
 		}
 	}()
+}
+
+func (p *Player) ReceiveMessage(t *testing.T, event string, action string) {
+	msg := &Message{}
+	json.Unmarshal(<-p.send, msg)
+
+	if msg.Event != event {
+		t.Errorf("Player receive wrong message event, {id: %d, rcv: %s, must: %s}", p.Id(), msg.Event, event)
+	}
+
+	if msg.Action != action {
+		t.Errorf("Player receive wrong message action, {id: %d, rcv: %s, must: %s}", p.Id(), msg.Action, action)
+	}
 }
 
 func TestGameCreate(t *testing.T) {
@@ -79,10 +79,6 @@ func TestGameJoin(t *testing.T) {
 	}
 
 	player2.OnMessage(msg)
-	time.Sleep(5 * time.Millisecond)
-
-	//t.Logf("%s", <- player2.send)
-	//t.Logf("%s", <- player2.send)
 }
 
 func TestAcceptEvent(t *testing.T) {
@@ -285,4 +281,354 @@ func TestGameEventLoopSecondIteration(t *testing.T) {
 			t.Errorf("Event has wrong name, check %s, current: %s", eventName, game.Event.Name())
 		}
 	}
+}
+
+type EventChecker struct {
+	Players []*Player
+	T *testing.T
+	Event string
+	ActionSend string
+	ActionReceive string
+	Data interface{}
+}
+
+func(e *EventChecker) Check() {
+	for _,player := range e.Players {
+		player.ReceiveMessage(e.T, e.Event, e.ActionSend)
+	}
+
+	for _,player := range e.Players {
+		msg := &Message{
+			Event: e.Event,
+			Action: e.ActionReceive,
+			Data: e.Data,
+		}
+
+		player.OnMessage(msg)
+	}
+
+	time.Sleep(5 * time.Millisecond)
+}
+
+func TestGameEvents(t *testing.T) {
+
+	playerMaster := NewPlayer()
+
+	msg := &Message{
+		Event: EVENT_GAME,
+		Action: ACTION_CREATE,
+		Data: map[string]interface{}{"username": strconv.Itoa(playerMaster.Id())},
+	}
+	playerMaster.OnMessage(msg)
+
+	playerMaster.ReceiveMessage(t, EVENT_GAME, ACTION_CREATE)
+	playerMaster.ReceiveMessage(t, EVENT_GAME, ACTION_PLAYERS)
+
+	players := playerMaster.Game().Players
+
+	if playerMaster.Game() == nil {
+		t.Errorf("Player has no game")
+	}
+
+	for i := 0; i < 10 ; i++ {
+		player := NewPlayer()
+		msg := &Message{
+			Event: EVENT_GAME,
+			Action: ACTION_JOIN,
+			Data: map[string]interface{}{"username": strconv.Itoa(player.Id()), "game": float64(playerMaster.Game().Id)},
+		}
+		player.OnMessage(msg)
+		player.ReceiveMessage(t, EVENT_GAME, ACTION_JOIN)
+		for _,innerPlayer := range players.FindAll() {
+			innerPlayer.ReceiveMessage(t, EVENT_GAME, ACTION_PLAYERS)
+		}
+	}
+
+	msg = &Message{
+		Event: EVENT_GAME,
+		Action: ACTION_START,
+	}
+	playerMaster.OnMessage(msg)
+
+	time.Sleep(5 * time.Millisecond)
+
+	if playerMaster.Game().Event.Name() != EVENT_GREET_CITIZENS {
+		t.Errorf("Invalid event: %s", playerMaster.Game().Event.Name())
+	}
+
+	ch := &EventChecker{}
+	ch.T = t
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_GREET_CITIZENS
+	ch.ActionSend = ACTION_START
+	ch.ActionReceive = ACTION_START
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_GREET_CITIZENS
+	ch.ActionSend = ACTION_ROLE
+	ch.ActionReceive = ACTION_ACCEPT
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_GREET_CITIZENS
+	ch.ActionSend = ACTION_END
+	ch.ActionReceive = ACTION_END
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_NIGHT
+	ch.ActionSend = ACTION_START
+	ch.ActionReceive = ACTION_START
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_GREET_MAFIA
+	ch.ActionSend = ACTION_START
+	ch.ActionReceive = ACTION_START
+	ch.Check()
+
+	ch.Players = players.FindByRole(ROLE_MAFIA)
+	ch.Event = EVENT_GREET_MAFIA
+	ch.ActionSend = ACTION_PLAYERS
+	ch.ActionReceive = ACTION_ACCEPT
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_GREET_MAFIA
+	ch.ActionSend = ACTION_END
+	ch.ActionReceive = ACTION_END
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_DAY
+	ch.ActionSend = ACTION_START
+	ch.ActionReceive = ACTION_START
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_COURT
+	ch.ActionSend = ACTION_START
+	ch.ActionReceive = ACTION_START
+	ch.Check()
+
+	candidates := players.FindByRole(ROLE_CITIZEN)
+	candidate := candidates[0]
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_COURT
+	ch.ActionSend = ACTION_PLAYERS
+	ch.ActionReceive = ACTION_VOTE
+	ch.Data = candidate.Id()
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_COURT_RESULT
+	ch.ActionSend = ACTION_OUT
+	ch.ActionReceive = ACTION_ACCEPT
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_COURT
+	ch.ActionSend = ACTION_END
+	ch.ActionReceive = ACTION_END
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_NIGHT
+	ch.ActionSend = ACTION_START
+	ch.ActionReceive = ACTION_START
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_MAFIA
+	ch.ActionSend = ACTION_START
+	ch.ActionReceive = ACTION_START
+	ch.Check()
+
+	candidates = players.FindByRole(ROLE_CITIZEN)
+	candidate = candidates[0]
+
+	ch.Players = players.FindByRole(ROLE_MAFIA)
+	ch.Event = EVENT_MAFIA
+	ch.ActionSend = ACTION_PLAYERS
+	ch.ActionReceive = ACTION_VOTE
+	ch.Data = candidate.Id()
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_MAFIA
+	ch.ActionSend = ACTION_END
+	ch.ActionReceive = ACTION_END
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_DOCTOR
+	ch.ActionSend = ACTION_START
+	ch.ActionReceive = ACTION_START
+	ch.Check()
+
+	ch.Players = players.FindByRole(ROLE_DOCTOR)
+	ch.Event = EVENT_DOCTOR
+	ch.ActionSend = ACTION_PLAYERS
+	ch.ActionReceive = ACTION_CHOICE
+	ch.Data = candidate.Id()
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_DOCTOR
+	ch.ActionSend = ACTION_END
+	ch.ActionReceive = ACTION_END
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_SHERIFF
+	ch.ActionSend = ACTION_START
+	ch.ActionReceive = ACTION_START
+	ch.Check()
+
+	ch.Players = players.FindByRole(ROLE_SHERIFF)
+	ch.Event = EVENT_SHERIFF
+	ch.ActionSend = ACTION_PLAYERS
+	ch.ActionReceive = ACTION_CHOICE
+	ch.Data = candidate.Id()
+	ch.Check()
+
+	ch.Players = players.FindByRole(ROLE_SHERIFF)
+	ch.Event = EVENT_SHERIFF_RESULT
+	ch.ActionSend = ACTION_ROLE
+	ch.ActionReceive = ACTION_ACCEPT
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_SHERIFF
+	ch.ActionSend = ACTION_END
+	ch.ActionReceive = ACTION_END
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_GIRL
+	ch.ActionSend = ACTION_START
+	ch.ActionReceive = ACTION_START
+	ch.Check()
+
+	ch.Players = players.FindByRole(ROLE_GIRL)
+	ch.Event = EVENT_GIRL
+	ch.ActionSend = ACTION_PLAYERS
+	ch.ActionReceive = ACTION_CHOICE
+	ch.Data = candidate.Id()
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_GIRL
+	ch.ActionSend = ACTION_END
+	ch.ActionReceive = ACTION_END
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_DAY
+	ch.ActionSend = ACTION_START
+	ch.ActionReceive = ACTION_START
+	ch.Check()
+
+	ch.Players = players.FindAll()
+	ch.Event = EVENT_NIGHT_RESULT
+	ch.ActionSend = ACTION_OUT
+	ch.ActionReceive = ACTION_ACCEPT
+	ch.Check()
+}
+
+func TestGameOver(t *testing.T) {
+	game := NewGame()
+	game.Iteration = 2
+
+	game.Event = NewMafiaEvent(game.Iteration)
+
+	mafia := NewPlayer()
+	mafia.SetGame(game)
+	mafia.SetRole(ROLE_MAFIA)
+	game.Players.Add(mafia)
+	mafia.game = game
+
+	citizen := NewPlayer()
+	citizen.SetGame(game)
+	citizen.SetRole(ROLE_CITIZEN)
+	game.Players.Add(citizen)
+	citizen.game = game
+
+	game.Run()
+
+	ch := &EventChecker{}
+	ch.T = t
+
+	candidates := game.Players.FindByRole(ROLE_CITIZEN)
+	candidate := candidates[0]
+
+	ch.Players = game.Players.FindByRole(ROLE_MAFIA)
+	ch.Event = EVENT_MAFIA
+	ch.ActionSend = ACTION_PLAYERS
+	ch.ActionReceive = ACTION_VOTE
+	ch.Data = candidate.Id()
+	ch.Check()
+
+	ch.Players = game.Players.FindAll()
+	ch.Event = EVENT_DAY
+	ch.ActionSend = ACTION_START
+	ch.ActionReceive = ACTION_START
+	ch.Check()
+
+	ch.Players = game.Players.FindAll()
+	ch.Event = EVENT_NIGHT_RESULT
+	ch.ActionSend = ACTION_OUT
+	ch.ActionReceive = ACTION_ACCEPT
+	ch.Check()
+
+	if !game.isOver() {
+		t.Errorf("Game is not over")
+	}
+}
+
+func TestReconnect(t *testing.T) {
+
+	game := NewGame()
+	game.Iteration = 2
+
+	game.Event = NewAcceptEvent(game.Iteration, EVENT_DAY, ACTION_START)
+
+	mafia := NewPlayer()
+	mafia.SetGame(game)
+	mafia.SetRole(ROLE_MAFIA)
+	game.Players.Add(mafia)
+	mafia.game = game
+
+	citizen := NewPlayer()
+	citizen.SetGame(game)
+	citizen.SetRole(ROLE_CITIZEN)
+	game.Players.Add(citizen)
+	citizen.game = game
+
+	Games[game.Id] = game
+	game.Run()
+
+	ch := &EventChecker{}
+	ch.T = t
+
+	ch.Players = game.Players.FindAll()
+	ch.Event = EVENT_DAY
+	ch.ActionSend = ACTION_START
+	ch.ActionReceive = ACTION_START
+	ch.Check()
+
+	newCitizen := NewPlayer()
+
+	msg := &Message{
+		Event: EVENT_GAME,
+		Action: ACTION_RECONNECT,
+		Data: map[string]interface{}{"game": float64(game.Id), "player": float64(citizen.Id())},
+	}
+
+	newCitizen.OnMessage(msg)
+
+	newCitizen.ReceiveMessage(t, EVENT_NIGHT_RESULT, ACTION_OUT)
 }

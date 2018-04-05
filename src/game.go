@@ -143,7 +143,6 @@ func (game *Game) initEventQueue() error {
 			return nil
 		case EVENT_DAY:
 			if game.Iteration != 1 {
-				log.Debugf("%s => %s, iteration %d", EVENT_DAY, EVENT_NIGHT_RESULT, game.Iteration)
 				queue.Push(NewNightResultEvent(game.Iteration))
 				return nil
 			}
@@ -151,7 +150,6 @@ func (game *Game) initEventQueue() error {
 			eventName = EVENT_NIGHT_RESULT
 			break
 		case EVENT_NIGHT_RESULT:
-			log.Debugf("%s => %s", EVENT_NIGHT_RESULT, EVENT_COURT)
 			queue.Push(NewAcceptEvent(game.Iteration, EVENT_COURT, ACTION_START))
 			queue.Push(NewCourtEvent(game.Iteration))
 			queue.Push(NewCourtResultEvent(game.Iteration))
