@@ -8,7 +8,6 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	log "github.com/sirupsen/logrus"
-	config "github.com/spf13/viper"
 	"runtime"
 	"time"
 	"runtime/debug"
@@ -24,23 +23,16 @@ func (f *LogFormatter) Format(entry *log.Entry) ([]byte, error) {
 	return []byte(fmt.Sprintf("[%s][%s][v1.0.0] %s\n", t, entry.Level.String(), entry.Message)), nil
 }
 
-var configPath = flag.String("conf", "./../app/config.yml", "path to config")
+var port = flag.Int("port", 4000, "port")
 
 func init() {
 	flag.Parse()
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	config.SetConfigFile(*configPath)
-	err := config.ReadInConfig()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Read config file: %v \n", err)
-		os.Exit(1)
-	}
-
 	log.SetFormatter(&LogFormatter{})
 	log.SetOutput(os.Stdout)
-	log.SetLevel(log.Level(config.GetInt("log.level")))
+	log.SetLevel(log.Level(5))
 }
 
 func main() {
@@ -50,7 +42,7 @@ func main() {
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { ws(w, r) })
 	http.Handle("/", r)
 
-	err := http.ListenAndServe(config.GetString("server.listen"), nil)
+	err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", *port), nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Serve error %v\n", err)
 	}
@@ -103,13 +95,13 @@ func info(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info := map[string]interface{}{
-		"id":      game.Id,
-		"event":   game.Event.Name(),
-		"event_status":   game.Event.Status(),
-		"iter":    game.Iteration,
-		"win":     game.Winner,
-		"is_over": game.isOver(),
-		"players": playersInfo,
+		"id":           game.Id,
+		"event":        game.Event.Name(),
+		"event_status": game.Event.Status(),
+		"iter":         game.Iteration,
+		"win":          game.Winner,
+		"is_over":      game.isOver(),
+		"players":      playersInfo,
 	}
 
 	response, err := json.Marshal(info)
