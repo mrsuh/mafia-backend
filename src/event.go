@@ -28,6 +28,7 @@ const EVENT_GREET_MAFIA = "greet_mafia"
 const EVENT_GREET_CITIZENS = "greet_citizen"
 
 const ACTION_CREATE = "create"
+const ACTION_RECONNECT = "reconnect"
 const ACTION_JOIN = "join"
 const ACTION_START = "start"
 const ACTION_END = "end"
@@ -354,7 +355,7 @@ func (event *CourtEvent) Process(players *Players, history *EventHistory) error 
 		playersInfo = append(playersInfo, playerInfo)
 	}
 
-	response := NewEventMessage(event, ACTION_CREATE)
+	response := NewEventMessage(event, ACTION_PLAYERS)
 	response.Data = playersInfo
 
 	for _, player := range players.FindAll() {
@@ -366,8 +367,7 @@ func (event *CourtEvent) Process(players *Players, history *EventHistory) error 
 
 func (event *CourtEvent) VoteAction(players *Players, history *EventHistory, player *Player, msg *Message) error {
 
-	data := msg.Data.(map[string]interface{})
-	voteId := data["player_id"].(int)
+	voteId := msg.Data.(int)
 	vote := players.FindOneById(voteId)
 
 	if vote == nil {
@@ -402,7 +402,7 @@ func NewCourtResultEvent(iter int) *CourtResultEvent {
 	e.status = NOT_IN_PROCESS
 	e.event = EVENT_COURT_RESULT
 	e.iteration = iter
-	e.AddAction(ACTION_OUT, e.AcceptAction)
+	e.AddAction(ACTION_ACCEPT, e.AcceptAction)
 	e.accepted = make([]*Player, 0)
 	return e
 }
@@ -458,11 +458,22 @@ func (event *CourtResultEvent) Process(players *Players, history *EventHistory) 
 
 	rmsg := NewEventMessage(event, ACTION_OUT)
 	rmsg.Data = map[string]interface{}{"id": courtCandidate.Id(), "username": courtCandidate.Name()}
-	for _, player := range players.FindAll() {
+
+	playersFor := players.FindAll()
+	courtCandidate.SetOut(true)
+	for _, player := range playersFor {
 		player.SendMessage(rmsg)
 	}
 
-	courtCandidate.SetOut(true)
+	return nil
+}
+
+func (event *CourtResultEvent) AcceptAction(players *Players, history *EventHistory, player *Player, msg *Message) error {
+	event.AddAccepted(player)
+
+	if event.IsAllAccepted(players.FindAll()) {
+		event.SetStatus(PROCESSED)
+	}
 
 	return nil
 }
@@ -523,8 +534,7 @@ func (event *DoctorEvent) ChoiceAction(players *Players, history *EventHistory, 
 		return fmt.Errorf(err)
 	}
 
-	data := msg.Data.(map[string]interface{})
-	choiceId := data["player_id"].(int)
+	choiceId := msg.Data.(int)
 	choice := players.FindOneById(choiceId)
 
 	if choice == nil {
@@ -728,8 +738,7 @@ func (event *GirlEvent) ChoiceAction(players *Players, history *EventHistory, pl
 		return fmt.Errorf(err)
 	}
 
-	data := msg.Data.(map[string]interface{})
-	choiceId := data["player_id"].(int)
+	choiceId := msg.Data.(int)
 	choice := players.FindOneById(choiceId)
 
 	if choice == nil {
@@ -1047,7 +1056,7 @@ func NewNightResultEvent(iter int) *NightResultEvent {
 	e.status = NOT_IN_PROCESS
 	e.event = EVENT_NIGHT_RESULT
 	e.iteration = iter
-	e.AddAction(ACTION_OUT, e.AcceptAction)
+	e.AddAction(ACTION_ACCEPT, e.AcceptAction)
 	e.accepted = make([]*Player, 0)
 	return e
 }
@@ -1176,8 +1185,7 @@ func (event *SheriffEvent) ChoiceAction(players *Players, history *EventHistory,
 		return fmt.Errorf(err)
 	}
 
-	data := msg.Data.(map[string]interface{})
-	choiceId := data["player_id"].(int)
+	choiceId := msg.Data.(int)
 	choice := players.FindOneById(choiceId)
 
 	if choice == nil {
