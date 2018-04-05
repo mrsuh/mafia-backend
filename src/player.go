@@ -192,6 +192,8 @@ func (p *Player) OnMessage(msg *Message) {
 
 			if !ok {
 				rmsg := &Message{
+					Event: EVENT_GAME,
+					Action: ACTION_RECONNECT,
 					Status: STATUS_ERR,
 					Data:   "invalid gameId",
 				}
@@ -200,10 +202,24 @@ func (p *Player) OnMessage(msg *Message) {
 				break
 			}
 
+			if game.isOver() {
+				rmsg := &Message{
+					Event: EVENT_GAME,
+					Action: ACTION_RECONNECT,
+					Status: STATUS_ERR,
+					Data:   "game is over",
+				}
+				log.Errorf("Game is over %v", gameId)
+				p.SendMessage(rmsg)
+				break
+			}
+
 			invalidPlayer := game.Players.FindOneById(playerId)
 
 			if invalidPlayer == nil {
 				rmsg := &Message{
+					Event: EVENT_GAME,
+					Action: ACTION_RECONNECT,
 					Status: STATUS_ERR,
 					Data:   "invalid playerId",
 				}
@@ -238,6 +254,8 @@ func (p *Player) OnMessage(msg *Message) {
 
 			if !ok {
 				rmsg := &Message{
+					Event: EVENT_GAME,
+					Action: ACTION_JOIN,
 					Status: STATUS_ERR,
 					Data:   "invalid gameId",
 				}
@@ -249,6 +267,7 @@ func (p *Player) OnMessage(msg *Message) {
 			break
 		default:
 			rmsg := &Message{
+				Event: EVENT_GAME,
 				Status: STATUS_ERR,
 				Data:   "invalid gameId",
 			}
@@ -271,7 +290,7 @@ func (p *Player) OnMessage(msg *Message) {
 			log.Errorf("error on action: %s, id: %d, err: %v", msg.Action, p.Id(), err)
 		}
 	} else {
-		log.Errorf("undefined message type: %s, id: %d", msg.Action, p.Id())
+		log.Errorf("undefined action: %s, id: %d", msg.Action, p.Id())
 	}
 }
 
