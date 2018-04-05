@@ -213,6 +213,10 @@ func (e *EventQueue) Len() int {
 	return len(e.data)
 }
 
+func (e *EventQueue) Clear() {
+	e.data = make([]IEvent, 0)
+}
+
 /*
 	EventHistory
  */
@@ -367,7 +371,7 @@ func (event *CourtEvent) Process(players *Players, history *EventHistory) error 
 
 func (event *CourtEvent) VoteAction(players *Players, history *EventHistory, player *Player, msg *Message) error {
 
-	voteId := msg.Data.(int)
+	voteId := int(msg.Data.(float64))
 	vote := players.FindOneById(voteId)
 
 	if vote == nil {
@@ -534,7 +538,7 @@ func (event *DoctorEvent) ChoiceAction(players *Players, history *EventHistory, 
 		return fmt.Errorf(err)
 	}
 
-	choiceId := msg.Data.(int)
+	choiceId := int(msg.Data.(float64))
 	choice := players.FindOneById(choiceId)
 
 	if choice == nil {
@@ -738,7 +742,7 @@ func (event *GirlEvent) ChoiceAction(players *Players, history *EventHistory, pl
 		return fmt.Errorf(err)
 	}
 
-	choiceId := msg.Data.(int)
+	choiceId := int(msg.Data.(float64))
 	choice := players.FindOneById(choiceId)
 
 	if choice == nil {
@@ -986,7 +990,7 @@ func (event *MafiaEvent) VoteAction(players *Players, history *EventHistory, pla
 		return fmt.Errorf(err)
 	}
 
-	voteId := msg.Data.(int)
+	voteId := int(msg.Data.(float64))
 	vote := players.FindOneById(voteId)
 
 	if vote == nil {
@@ -1185,7 +1189,7 @@ func (event *SheriffEvent) ChoiceAction(players *Players, history *EventHistory,
 		return fmt.Errorf(err)
 	}
 
-	choiceId := msg.Data.(int)
+	choiceId := int(msg.Data.(float64))
 	choice := players.FindOneById(choiceId)
 
 	if choice == nil {

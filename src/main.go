@@ -37,11 +37,7 @@ func init() {
 		fmt.Fprintf(os.Stderr, "Read config file: %v \n", err)
 		os.Exit(1)
 	}
-	//f, err := os.OpenFile(config.GetString("log.file"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0660)
-	//if err != nil {
-	//	fmt.Fprintf(os.Stderr, "Open log file error %v\n", err)
-	//	os.Exit(1)
-	//}
+
 	log.SetFormatter(&LogFormatter{})
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.Level(config.GetInt("log.level")))
@@ -50,7 +46,7 @@ func init() {
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) { health(w, r) })
-	r.HandleFunc("/clients", func(w http.ResponseWriter, r *http.Request) { clients(w, r) })
+	r.HandleFunc("/info", func(w http.ResponseWriter, r *http.Request) { info(w, r) })
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { ws(w, r) })
 	http.Handle("/", r)
 
@@ -77,7 +73,7 @@ func health(w http.ResponseWriter, r *http.Request) {
 	w.Write(health)
 }
 
-func clients(w http.ResponseWriter, r *http.Request) {
+func info(w http.ResponseWriter, r *http.Request) {
 
 	gameIds := r.URL.Query()["game"]
 	gameId := 0
@@ -85,28 +81,35 @@ func clients(w http.ResponseWriter, r *http.Request) {
 	if len(gameIds) > 0 {
 		gameId, err = strconv.Atoi(gameIds[0])
 		if err != nil {
-			//todo
+			w.Write([]byte("invalid game id"))
 		}
 	}
 
 	game, ok := Games[gameId]
 
 	if !ok {
-		//todo
+		w.Write([]byte("invalid game id"))
+		return
 	}
 
-	info := make([]interface{}, 0)
+	playersInfo := make([]interface{}, 0)
 	for _, player := range game.Players.FindAll() {
-		info = append(info, map[string]interface{}{
+		playersInfo = append(playersInfo, map[string]interface{}{
 			"id":        player.Id(),
-			//"id":        player.Id,
-			//"name":      player.Name,
-			//"addr":      player.Addr,
-			//"version":   player.Version,
-			//"url":       player.Url,
-			//"device":    player.Device,
-			//"createdAt": player.CreatedAt,
+			"name":      player.Name(),
+			"createdAt": player.createdAt,
+			"role":      player.Role(),
 		})
+	}
+
+	info := map[string]interface{}{
+		"id":      game.Id,
+		"event":   game.Event.Name(),
+		"event_status":   game.Event.Status(),
+		"iter":    game.Iteration,
+		"win":     game.Winner,
+		"is_over": game.isOver(),
+		"players": playersInfo,
 	}
 
 	response, err := json.Marshal(info)
