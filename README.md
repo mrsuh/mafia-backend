@@ -9,7 +9,7 @@ sh bin/build.sh
 
 ## Run
 ```bash
-./bin/server --conf=/path/to/conf.yml
+./bin/server --port=9000
 ```
 
 ## Test
