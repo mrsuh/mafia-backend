@@ -20,7 +20,7 @@ type Game struct {
 	EventsHistory *EventHistory
 	Event         IEvent
 	Iteration     int
-	Winner     int
+	Winner        int
 }
 
 func NewGame() *Game {
@@ -40,7 +40,9 @@ func (game *Game) Run() {
 
 func (game *Game) isOver() bool {
 
-	if game.Iteration == 1 {
+	if  game.Event.Name() == EVENT_GAME ||
+		game.Event.Name() == EVENT_GREET_CITIZENS ||
+		game.Event.Name() == EVENT_GREET_MAFIA {
 		return false
 	}
 
@@ -50,7 +52,7 @@ func (game *Game) isOver() bool {
 	girl := len(game.Players.FindByRole(ROLE_GIRL))
 	doctor := len(game.Players.FindByRole(ROLE_DOCTOR))
 
-	if citizens + sheriff + girl + doctor == 0 {
+	if citizens+sheriff+girl+doctor == 0 {
 		game.Winner = ROLE_MAFIA
 	}
 
@@ -63,10 +65,6 @@ func (game *Game) isOver() bool {
 
 func (game *Game) SetNextEvent() error {
 
-	if game.isOver() {
-		game.EventsQueue.Push(NewGameOverEvent(game.Iteration, game.Winner))
-		return nil
-	}
 	if game.EventsQueue.Len() == 0 {
 		game.initEventQueue()
 	}
@@ -86,6 +84,12 @@ func (game *Game) initEventQueue() error {
 	queue := game.EventsQueue
 	eventName := game.Event.Name()
 	for {
+
+		if game.isOver() {
+			queue.Push(NewGameOverEvent(game.Iteration, game.Winner))
+			return nil
+		}
+
 		switch(eventName) {
 		case EVENT_GAME:
 			queue.Push(NewAcceptEvent(game.Iteration, EVENT_GREET_CITIZENS, ACTION_START))
