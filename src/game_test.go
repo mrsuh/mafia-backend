@@ -294,9 +294,7 @@ type EventChecker struct {
 
 func(e *EventChecker) Check() {
 	for _,player := range e.Players {
-		//log.Debugf("ReceiveMessage id: %d, event start: %s, action: %s", player.Id(), e.Event, e.ActionSend)
 		player.ReceiveMessage(e.T, e.Event, e.ActionSend)
-		//log.Debugf("ReceiveMessage id: %d, event done: %s, action: %s", player.Id(), e.Event, e.ActionSend)
 	}
 
 	for _,player := range e.Players {
@@ -305,7 +303,7 @@ func(e *EventChecker) Check() {
 			Action: e.ActionReceive,
 			Data: e.Data,
 		}
-		//log.Debugf("OnMessage id: %d, event: %s, action: %s", player.Id(), e.Event, e.ActionReceive)
+
 		player.OnMessage(msg)
 	}
 
