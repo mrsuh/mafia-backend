@@ -6,7 +6,6 @@ import (
 	"os"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	_ "github.com/jinzhu/gorm/dialects/mysql"
 	log "github.com/sirupsen/logrus"
 	"runtime"
 	"time"
