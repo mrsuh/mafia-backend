@@ -1137,6 +1137,16 @@ func (event *NightResultEvent) Process(players *Players, history *EventHistory) 
 	return nil
 }
 
+func (event *NightResultEvent) AcceptAction(players *Players, history *EventHistory, player *Player, msg *Message) error {
+	event.AddAccepted(player)
+
+	if event.IsAllAccepted(players.FindAll()) {
+		event.SetStatus(PROCESSED)
+	}
+
+	return nil
+}
+
 /*
 SheriffEvent
  */
