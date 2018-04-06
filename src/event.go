@@ -383,6 +383,13 @@ func (event *CourtEvent) VoteAction(players *Players, history *EventHistory, pla
 		return fmt.Errorf(err)
 	}
 
+	rmsg := NewEventMessage(event, ACTION_VOTE)
+	rmsg.Data = map[string]interface{}{"player": player.Name(), "vote": vote.Name()}
+
+	for _, pl := range players.FindAll() {
+		pl.SendMessage(rmsg)
+	}
+
 	event.AddVoted(player, vote)
 
 	if event.IsAllVoted(players.FindAll()) {
@@ -594,7 +601,7 @@ func (event *GameEvent) CreateAction(players *Players, history *EventHistory, pl
 	username := data["username"].(string)
 
 	if players.FindOneByUsername(username) != nil {
-		rmsg := NewEventMessage(event, ACTION_JOIN)
+		rmsg := NewEventMessage(event, ACTION_CREATE)
 		rmsg.Status = STATUS_ERR
 		err := "username already exists"
 		rmsg.Data = err
@@ -1241,7 +1248,7 @@ func (event *SheriffResultEvent) Process(players *Players, history *EventHistory
 	}
 
 	rmsg := NewEventMessage(event, ACTION_ROLE)
-	rmsg.Data = sheriffEvent.Choice().Role()
+	rmsg.Data = map[string]interface{}{"username": sheriffEvent.Choice().Name(), "role": sheriffEvent.Choice().Role()}
 	sheriff.SendMessage(rmsg)
 
 	return nil
