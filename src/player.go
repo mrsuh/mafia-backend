@@ -73,7 +73,11 @@ func (p *Player) SendMessage(message *Message) {
 		}
 	}()
 
-	p.lastSendMessage = message
+	if
+		message.Status != STATUS_ERR &&
+		message.Action != ACTION_VOTE {
+		p.lastSendMessage = message
+	}
 
 	msg, err := json.Marshal(message)
 
