@@ -44,9 +44,6 @@ type Player struct {
 	game               *Game
 	master             bool
 	addr               string
-	version            string
-	device             string
-	url                string
 	createdAt          time.Time
 	conn               *websocket.Conn
 	out                bool
@@ -95,6 +92,14 @@ func (p *Player) SetGame(game *Game) {
 
 func (p *Player) Game() *Game {
 	return p.game
+}
+
+func (p *Player) SetAddr(addr string) {
+	p.addr = addr
+}
+
+func (p *Player) Addr() string {
+	return p.addr
 }
 
 func (p *Player) Id() int {
@@ -239,6 +244,7 @@ func (p *Player) OnMessage(msg *Message) {
 			p.master = invalidPlayer.master
 			p.lastSendMessage = invalidPlayer.lastSendMessage
 			p.lastReceiveMessage = invalidPlayer.lastReceiveMessage
+			p.out = invalidPlayer.out
 
 			game.Players.Remove(invalidPlayer)
 			game.Players.Add(p)

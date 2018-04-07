@@ -88,6 +88,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 		playersInfo = append(playersInfo, map[string]interface{}{
 			"id":        player.Id(),
 			"name":      player.Name(),
+			"addr":      player.Addr(),
 			"createdAt": player.createdAt,
 			"role":      player.Role(),
 		})
@@ -106,7 +107,7 @@ func info(w http.ResponseWriter, r *http.Request) {
 	response, err := json.Marshal(info)
 
 	if err != nil {
-		log.Errorf("Clients controller error: %v", err)
+		log.Errorf("Info controller error: %v", err)
 	}
 	w.Write(response)
 }
@@ -134,6 +135,7 @@ func ws(w http.ResponseWriter, r *http.Request) {
 
 	player := NewPlayer()
 	player.SetConnection(conn)
+	player.SetAddr(r.RemoteAddr)
 }
 
 func GC(every time.Duration) {
