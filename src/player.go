@@ -181,7 +181,77 @@ func (p *Player) readLoop() {
 	}
 }
 
+func (p *Player) onReconnect(msg *Message) {
+	data := msg.Data.(map[string]interface{})
+	gameId := int(data["game"].(float64))
+	playerId := int(data["player"].(float64))
+
+	game, ok := Games[gameId]
+
+	if !ok {
+		rmsg := &Message{
+			Event: EVENT_GAME,
+			Action: ACTION_RECONNECT,
+			Status: STATUS_ERR,
+			Data:   "invalid gameId",
+		}
+		log.Errorf("Invalid game id %v", gameId)
+		p.SendMessage(rmsg)
+		return
+	}
+
+	if game.isOver() {
+		rmsg := &Message{
+			Event: EVENT_GAME,
+			Action: ACTION_RECONNECT,
+			Status: STATUS_ERR,
+			Data:   "game is over",
+		}
+		log.Errorf("Game is over %v", gameId)
+		p.SendMessage(rmsg)
+		return
+	}
+
+	invalidPlayer := game.Players.FindOneById(playerId)
+
+	if invalidPlayer == nil {
+		rmsg := &Message{
+			Event: EVENT_GAME,
+			Action: ACTION_RECONNECT,
+			Status: STATUS_ERR,
+			Data:   "invalid playerId",
+		}
+		log.Errorf("Invalid player id %v", playerId)
+		p.SendMessage(rmsg)
+		return
+	}
+
+	p.id = invalidPlayer.id
+	p.name = invalidPlayer.name
+	p.role = invalidPlayer.role
+	p.game = invalidPlayer.game
+	p.master = invalidPlayer.master
+	p.lastSendMessage = invalidPlayer.lastSendMessage
+	p.lastReceiveMessage = invalidPlayer.lastReceiveMessage
+	p.out = invalidPlayer.out
+
+	game.Players.Remove(invalidPlayer)
+	game.Players.Add(p)
+
+	log.Debugf("MSG %#v", p.lastSendMessage)
+	if p.lastSendMessage != nil {
+		log.Debugf("MSG %#v", p.lastSendMessage)
+		p.SendMessage(p.lastSendMessage)
+	}
+}
+
 func (p *Player) OnMessage(msg *Message) {
+
+	if msg.Action == ACTION_RECONNECT {
+		p.onReconnect(msg)
+		return
+	}
+
 	if p.Game() == nil {
 
 		switch msg.Action {
@@ -191,70 +261,6 @@ func (p *Player) OnMessage(msg *Message) {
 			Games[game.Id] = game
 			p.game = game
 			p.master = true
-			break
-		case ACTION_RECONNECT:
-			data := msg.Data.(map[string]interface{})
-			gameId := int(data["game"].(float64))
-			playerId := int(data["player"].(float64))
-
-			game, ok := Games[gameId]
-
-			if !ok {
-				rmsg := &Message{
-					Event: EVENT_GAME,
-					Action: ACTION_RECONNECT,
-					Status: STATUS_ERR,
-					Data:   "invalid gameId",
-				}
-				log.Errorf("Invalid game id %v", gameId)
-				p.SendMessage(rmsg)
-				break
-			}
-
-			if game.isOver() {
-				rmsg := &Message{
-					Event: EVENT_GAME,
-					Action: ACTION_RECONNECT,
-					Status: STATUS_ERR,
-					Data:   "game is over",
-				}
-				log.Errorf("Game is over %v", gameId)
-				p.SendMessage(rmsg)
-				break
-			}
-
-			invalidPlayer := game.Players.FindOneById(playerId)
-
-			if invalidPlayer == nil {
-				rmsg := &Message{
-					Event: EVENT_GAME,
-					Action: ACTION_RECONNECT,
-					Status: STATUS_ERR,
-					Data:   "invalid playerId",
-				}
-				log.Errorf("Invalid player id %v", playerId)
-				p.SendMessage(rmsg)
-				break
-			}
-
-			p.id = invalidPlayer.id
-			p.name = invalidPlayer.name
-			p.role = invalidPlayer.role
-			p.game = invalidPlayer.game
-			p.master = invalidPlayer.master
-			p.lastSendMessage = invalidPlayer.lastSendMessage
-			p.lastReceiveMessage = invalidPlayer.lastReceiveMessage
-			p.out = invalidPlayer.out
-
-			game.Players.Remove(invalidPlayer)
-			game.Players.Add(p)
-
-			log.Debugf("MSG %#v", p.lastSendMessage)
-			if p.lastSendMessage != nil {
-				log.Debugf("MSG %#v", p.lastSendMessage)
-				p.SendMessage(p.lastSendMessage)
-			}
-
 			break
 		case ACTION_JOIN:
 			data := msg.Data.(map[string]interface{})

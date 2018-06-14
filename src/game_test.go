@@ -151,7 +151,7 @@ func TestMafiaResultEvent(t *testing.T) {
 	game.Players.Add(citizen)
 
 	msg := NewEventMessage(game.Event, ACTION_VOTE)
-	msg.Data = citizen.Id()
+	msg.Data = float64(citizen.Id())
 	mafia.OnMessage(msg)
 
 	time.Sleep(5 * time.Millisecond)
@@ -304,14 +304,33 @@ func(e *EventChecker) Check() {
 			Data: e.Data,
 		}
 
+		for {
+
+			if len(player.send) == 0 {
+				break
+			}
+
+			<-player.send
+		}
+
 		player.OnMessage(msg)
+
+		for _,rcvPlayer := range e.Players {
+			for {
+
+				if len(rcvPlayer.send) == 0 {
+					break
+				}
+
+				<-rcvPlayer.send
+			}
+		}
 	}
 
 	time.Sleep(5 * time.Millisecond)
 }
 
 func TestGameEvents(t *testing.T) {
-
 	playerMaster := NewPlayer()
 
 	msg := &Message{
@@ -330,7 +349,7 @@ func TestGameEvents(t *testing.T) {
 		t.Errorf("Player has no game")
 	}
 
-	for i := 0; i < 10 ; i++ {
+	for i := 0; i < 100 ; i++ {
 		player := NewPlayer()
 		msg := &Message{
 			Event: EVENT_GAME,
@@ -420,7 +439,8 @@ func TestGameEvents(t *testing.T) {
 	ch.Event = EVENT_COURT
 	ch.ActionSend = ACTION_PLAYERS
 	ch.ActionReceive = ACTION_VOTE
-	ch.Data = candidate.Id()
+	ch.Data = float64(candidate.Id())
+
 	ch.Check()
 
 	ch.Players = players.FindAll()
@@ -454,7 +474,7 @@ func TestGameEvents(t *testing.T) {
 	ch.Event = EVENT_MAFIA
 	ch.ActionSend = ACTION_PLAYERS
 	ch.ActionReceive = ACTION_VOTE
-	ch.Data = candidate.Id()
+	ch.Data = float64(candidate.Id())
 	ch.Check()
 
 	ch.Players = players.FindAll()
@@ -473,7 +493,7 @@ func TestGameEvents(t *testing.T) {
 	ch.Event = EVENT_DOCTOR
 	ch.ActionSend = ACTION_PLAYERS
 	ch.ActionReceive = ACTION_CHOICE
-	ch.Data = candidate.Id()
+	ch.Data = float64(candidate.Id())
 	ch.Check()
 
 	ch.Players = players.FindAll()
@@ -492,7 +512,7 @@ func TestGameEvents(t *testing.T) {
 	ch.Event = EVENT_SHERIFF
 	ch.ActionSend = ACTION_PLAYERS
 	ch.ActionReceive = ACTION_CHOICE
-	ch.Data = candidate.Id()
+	ch.Data = float64(candidate.Id())
 	ch.Check()
 
 	ch.Players = players.FindByRole(ROLE_SHERIFF)
@@ -517,7 +537,7 @@ func TestGameEvents(t *testing.T) {
 	ch.Event = EVENT_GIRL
 	ch.ActionSend = ACTION_PLAYERS
 	ch.ActionReceive = ACTION_CHOICE
-	ch.Data = candidate.Id()
+	ch.Data = float64(candidate.Id())
 	ch.Check()
 
 	ch.Players = players.FindAll()
@@ -569,7 +589,7 @@ func TestGameOver(t *testing.T) {
 	ch.Event = EVENT_MAFIA
 	ch.ActionSend = ACTION_PLAYERS
 	ch.ActionReceive = ACTION_VOTE
-	ch.Data = candidate.Id()
+	ch.Data = float64(candidate.Id())
 	ch.Check()
 
 	ch.Players = game.Players.FindAll()

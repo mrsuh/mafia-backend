@@ -14,5 +14,5 @@ sh bin/build.sh
 
 ## Test
 ```bash
-go test
+go test mafia-backend/src -v
 ```
