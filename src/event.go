@@ -1012,7 +1012,7 @@ func (event *MafiaEvent) VoteAction(players *Players, history *EventHistory, pla
 	event.AddVoted(player, vote)
 
 	if !event.IsAllVoted(players.FindByRole(ROLE_MAFIA)) {
-		return fmt.Errorf("!event.IsAllVoted")
+		fmt.Errorf("!event.IsAllVoted")
 		return nil
 	}
 
