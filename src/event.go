@@ -13,6 +13,7 @@ const IN_PROCESS = 2
 const PROCESSED = 3
 
 const EVENT_GAME = "game"
+const EVENT_GAME_START = "game_start"
 const EVENT_GAME_OVER = "game_over"
 const EVENT_DAY = "day"
 const EVENT_NIGHT = "night"
@@ -671,7 +672,7 @@ func (event *GameEvent) sendPlayersInfo(players *Players) {
 func (event *GameEvent) StartAction(players *Players, history *EventHistory, player *Player, msg *Message) error {
 
 	if !player.Master() {
-		rmsg := NewEventMessage(event, ACTION_JOIN)
+		rmsg := NewEventMessage(event, ACTION_START)
 		rmsg.Status = STATUS_ERR
 		err := "you have not rights to start game"
 		rmsg.Data = err
@@ -680,7 +681,7 @@ func (event *GameEvent) StartAction(players *Players, history *EventHistory, pla
 	}
 
 	if len(players.FindAll()) < 3 {
-		rmsg := NewEventMessage(event, ACTION_JOIN)
+		rmsg := NewEventMessage(event, ACTION_START)
 		rmsg.Status = STATUS_ERR
 		err := "too few players to start game"
 		rmsg.Data = err

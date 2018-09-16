@@ -41,6 +41,7 @@ func (game *Game) Run() {
 func (game *Game) isOver() bool {
 
 	if  game.Event.Name() == EVENT_GAME ||
+	    game.Event.Name() == EVENT_GAME_START ||
 		game.Event.Name() == EVENT_GREET_CITIZENS ||
 		game.Event.Name() == EVENT_GREET_MAFIA {
 		return false
@@ -92,6 +93,9 @@ func (game *Game) initEventQueue() error {
 
 		switch(eventName) {
 		case EVENT_GAME:
+			queue.Push(NewAcceptEvent(game.Iteration, EVENT_GAME_START, ACTION_START))
+			return nil
+		case EVENT_GAME_START:
 			queue.Push(NewAcceptEvent(game.Iteration, EVENT_GREET_CITIZENS, ACTION_START))
 			queue.Push(NewGreetCitizensEvent(game.Iteration))
 			queue.Push(NewAcceptEvent(game.Iteration, EVENT_GREET_CITIZENS, ACTION_END))

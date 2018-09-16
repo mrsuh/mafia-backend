@@ -5,8 +5,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"encoding/json"
 	"time"
-	"math/rand"
+	"crypto/rand"
 	"fmt"
+	"encoding/binary"
 )
 
 const maxMessageSize = 4096 // Maximum message size allowed from peer.
@@ -52,9 +53,21 @@ type Player struct {
 	lastReceiveMessage *Message
 }
 
+func GenerateRandomInt(n int) (int) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+
+	if err != nil {
+		return 0
+	}
+
+	return int(binary.BigEndian.Uint16(b))
+}
+
 func NewPlayer() *Player {
+
 	player := &Player{
-		id:        rand.Intn(999999999),
+		id:   GenerateRandomInt(10),
 		createdAt: time.Now(),
 		send:      make(chan []byte, 5),
 		out:       false,
@@ -145,7 +158,7 @@ func (player *Player) SetConnection(conn *websocket.Conn) {
 }
 
 func (p *Player) readLoop() {
-	log.Debugf("readLoop %s", p.Id())
+	log.Debugf("readLoop %d", p.Id())
 	defer func() {
 
 		if err := recover(); err != nil {
@@ -311,7 +324,7 @@ func (p *Player) OnMessage(msg *Message) {
 }
 
 func (p *Player) writeLoop() {
-	log.Debugf("writePump %s", p.Id)
+	log.Debugf("writePump %d", p.Id)
 	defer func() {
 
 		if err := recover(); err != nil {
