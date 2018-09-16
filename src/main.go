@@ -40,8 +40,8 @@ func main() {
 	r.HandleFunc("/info", func(w http.ResponseWriter, r *http.Request) { info(w, r) })
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { ws(w, r) })
 	http.Handle("/", r)
-
-	err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", *port), nil)
+	log.Debugf("Listen http://0.0.0.0:%d", *port)
+	err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", *port), nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Serve error %v\n", err)
 	}

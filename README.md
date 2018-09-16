@@ -16,3 +16,20 @@ sh bin/build.sh
 ```bash
 go test mafia-backend/src -v
 ```
+
+## Docker
+
+#### Build
+```
+docker build -p mafia-backend .
+```
+
+#### Run
+```
+docker run mafia-backend
+```
+
+#### Run from Hub
+```
+docker run mrsuh/mafia-backend
+```
