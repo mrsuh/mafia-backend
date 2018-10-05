@@ -8,11 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var Games map[int]*Game
-
-func init() {
-	Games = make(map[int]*Game, 0)
-}
+var Games = make(map[int]*Game, 0)
 
 type Game struct {
 	Id            int
