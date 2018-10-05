@@ -1,18 +1,19 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
-	"encoding/json"
-	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
 	"runtime"
-	"time"
 	"runtime/debug"
-	"github.com/gorilla/websocket"
 	"strconv"
-	"flag"
+	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 type LogFormatter struct{}
@@ -36,9 +37,9 @@ func init() {
 
 func main() {
 	r := mux.NewRouter()
-	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) { health(w, r) })
-	r.HandleFunc("/info", func(w http.ResponseWriter, r *http.Request) { info(w, r) })
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { ws(w, r) })
+	r.HandleFunc("/health", health)
+	r.HandleFunc("/info", info)
+	r.HandleFunc("/", ws)
 	http.Handle("/", r)
 	log.Debugf("Listen http://0.0.0.0:%d", *port)
 	err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", *port), nil)
@@ -50,36 +51,39 @@ func main() {
 func health(w http.ResponseWriter, r *http.Request) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
-	health, err := json.Marshal(map[string]interface{}{
+	health := map[string]interface{}{
 		"runtime.NumGoroutine":        runtime.NumGoroutine(),
 		"runtime.MemStats.Alloc":      memStats.Alloc,
 		"runtime.MemStats.TotalAlloc": memStats.TotalAlloc,
 		"runtime.MemStats.Sys":        memStats.Sys,
 		"runtime.MemStats.NumGC":      memStats.NumGC,
-	})
+	}
 
+	w.Header().Set("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(health)
 	if err != nil {
 		log.Errorf("Health error: %v", err)
 	}
-	w.Write(health)
 }
 
 func info(w http.ResponseWriter, r *http.Request) {
-
 	gameIds := r.URL.Query()["game"]
 	gameId := 0
 	var err error
 	if len(gameIds) > 0 {
 		gameId, err = strconv.Atoi(gameIds[0])
 		if err != nil {
-			w.Write([]byte("invalid game id"))
+			http.Error(w, "invalid game id", http.StatusBadRequest)
+			return
 		}
+	} else {
+		http.Error(w, "param \"game\" can't be empty", http.StatusBadRequest)
+		return
 	}
 
 	game, ok := Games[gameId]
-
 	if !ok {
-		w.Write([]byte("invalid game id"))
+		http.Error(w, "invalid game id", http.StatusBadRequest)
 		return
 	}
 
@@ -104,16 +108,14 @@ func info(w http.ResponseWriter, r *http.Request) {
 		"players":      playersInfo,
 	}
 
-	response, err := json.Marshal(info)
-
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(info)
 	if err != nil {
 		log.Errorf("Info controller error: %v", err)
 	}
-	w.Write(response)
 }
 
 func ws(w http.ResponseWriter, r *http.Request) {
-
 	defer func() {
 		log.Infof("CLOSE serverWS")
 	}()

@@ -1,15 +1,15 @@
 package main
 
 import (
-	"testing"
-	"time"
+	"encoding/json"
 	"fmt"
 	"strconv"
-	"encoding/json"
+	"testing"
+	"time"
 )
 
 func (p *Player) Run(t *testing.T) {
-	go func(){
+	go func() {
 		for {
 			select {
 			case message := <-p.send:
@@ -37,26 +37,26 @@ func (p *Player) ReceiveMessage(t *testing.T, event string, action string) bool 
 }
 
 type EventChecker struct {
-	Players []*Player
-	T *testing.T
-	Event string
-	ActionSend string
+	Players       []*Player
+	T             *testing.T
+	Event         string
+	ActionSend    string
 	ActionReceive string
-	Data interface{}
+	Data          interface{}
 }
 
-func(e *EventChecker) Check() {
-	for _,player := range e.Players {
+func (e *EventChecker) Check() {
+	for _, player := range e.Players {
 		if !player.ReceiveMessage(e.T, e.Event, e.ActionSend) {
 			return
 		}
 	}
 
-	for _,player := range e.Players {
+	for _, player := range e.Players {
 		msg := &Message{
-			Event: e.Event,
+			Event:  e.Event,
 			Action: e.ActionReceive,
-			Data: e.Data,
+			Data:   e.Data,
 		}
 
 		for {
@@ -70,7 +70,7 @@ func(e *EventChecker) Check() {
 
 		player.OnMessage(msg)
 
-		for _,rcvPlayer := range e.Players {
+		for _, rcvPlayer := range e.Players {
 			for {
 
 				if len(rcvPlayer.send) == 0 {
@@ -91,10 +91,10 @@ func TestGameCreate(t *testing.T) {
 	player.Run(t)
 
 	msg := &Message{
-		Event:EVENT_GAME,
-		Action: ACTION_CREATE,
+		Event:     EVENT_GAME,
+		Action:    ACTION_CREATE,
 		Iteration: 0,
-		Data: map[string]interface{}{"username": "anton"},
+		Data:      map[string]interface{}{"username": "anton"},
 	}
 
 	player.OnMessage(msg)
@@ -127,10 +127,10 @@ func TestGameJoin(t *testing.T) {
 	player2.Run(t)
 
 	msg := &Message{
-		Event:EVENT_GAME,
-		Action: ACTION_JOIN,
+		Event:     EVENT_GAME,
+		Action:    ACTION_JOIN,
 		Iteration: 0,
-		Data: map[string]interface{}{"username": "anton2", "game": float64(game.Id)},
+		Data:      map[string]interface{}{"username": "anton2", "game": float64(game.Id)},
 	}
 
 	player2.OnMessage(msg)
@@ -234,7 +234,7 @@ func TestGameEventLoopFirstLoop(t *testing.T) {
 	game.Run()
 	game.Event = NewGameEvent()
 
-	for i := 0; i < 10 ; i++ {
+	for i := 0; i < 10; i++ {
 		player := NewPlayer()
 		player.Run(t)
 		player.SetGame(game)
@@ -242,23 +242,23 @@ func TestGameEventLoopFirstLoop(t *testing.T) {
 	}
 
 	events := []string{
-		EVENT_GAME_START,//start
-		EVENT_GREET_CITIZENS,//start
+		EVENT_GAME_START,     //start
+		EVENT_GREET_CITIZENS, //start
 		EVENT_GREET_CITIZENS,
-		EVENT_GREET_CITIZENS,//end
+		EVENT_GREET_CITIZENS, //end
 		EVENT_NIGHT,
-		EVENT_GREET_MAFIA,//start
+		EVENT_GREET_MAFIA, //start
 		EVENT_GREET_MAFIA,
-		EVENT_GREET_MAFIA,//end
+		EVENT_GREET_MAFIA, //end
 		EVENT_DAY,
-		EVENT_COURT,//start
+		EVENT_COURT, //start
 		EVENT_COURT,
 		EVENT_COURT_RESULT,
-		EVENT_COURT,//end
+		EVENT_COURT, //end
 		EVENT_NIGHT,
-		EVENT_MAFIA,//start
+		EVENT_MAFIA, //start
 		EVENT_MAFIA,
-		EVENT_MAFIA,//end
+		EVENT_MAFIA, //end
 	}
 
 	for _, eventName := range events {
@@ -310,26 +310,26 @@ func TestGameEventLoopSecondIteration(t *testing.T) {
 	game.Players.Add(sheriff)
 
 	events := []string{
-		EVENT_MAFIA,//start
+		EVENT_MAFIA, //start
 		EVENT_MAFIA,
-		EVENT_MAFIA,//end
-		EVENT_DOCTOR,//start
+		EVENT_MAFIA,  //end
+		EVENT_DOCTOR, //start
 		EVENT_DOCTOR,
-		EVENT_DOCTOR,//end
-		EVENT_SHERIFF,//start
+		EVENT_DOCTOR,  //end
+		EVENT_SHERIFF, //start
 		EVENT_SHERIFF,
 		//EVENT_SHERIFF_RESULT, sheriff has not choice
-		EVENT_SHERIFF,//end
-		EVENT_GIRL,//start
+		EVENT_SHERIFF, //end
+		EVENT_GIRL,    //start
 		EVENT_GIRL,
-		EVENT_GIRL,//end
+		EVENT_GIRL, //end
 		EVENT_DAY,
 		EVENT_NIGHT_RESULT,
-		EVENT_COURT,//start
+		EVENT_COURT, //start
 		EVENT_COURT,
 		EVENT_COURT_RESULT,
-		EVENT_COURT,//end
-		EVENT_NIGHT,//start
+		EVENT_COURT, //end
+		EVENT_NIGHT, //start
 	}
 
 	game.Event = NewAcceptEvent(game.Iteration, EVENT_NIGHT, ACTION_ACCEPT)
@@ -348,9 +348,9 @@ func TestGameEvents(t *testing.T) {
 	playerMaster := NewPlayer()
 
 	msg := &Message{
-		Event: EVENT_GAME,
+		Event:  EVENT_GAME,
 		Action: ACTION_CREATE,
-		Data: map[string]interface{}{"username": strconv.Itoa(playerMaster.Id())},
+		Data:   map[string]interface{}{"username": strconv.Itoa(playerMaster.Id())},
 	}
 	playerMaster.OnMessage(msg)
 
@@ -368,18 +368,18 @@ func TestGameEvents(t *testing.T) {
 		return
 	}
 
-	for i := 0; i < 100 ; i++ {
+	for i := 0; i < 100; i++ {
 		player := NewPlayer()
 		msg := &Message{
-			Event: EVENT_GAME,
+			Event:  EVENT_GAME,
 			Action: ACTION_JOIN,
-			Data: map[string]interface{}{"username": strconv.Itoa(player.Id()), "game": float64(playerMaster.Game().Id)},
+			Data:   map[string]interface{}{"username": strconv.Itoa(player.Id()), "game": float64(playerMaster.Game().Id)},
 		}
 		player.OnMessage(msg)
 		if !player.ReceiveMessage(t, EVENT_GAME, ACTION_JOIN) {
 			return
 		}
-		for _,innerPlayer := range players.FindAll() {
+		for _, innerPlayer := range players.FindAll() {
 			if !innerPlayer.ReceiveMessage(t, EVENT_GAME, ACTION_PLAYERS) {
 				return
 			}
@@ -387,7 +387,7 @@ func TestGameEvents(t *testing.T) {
 	}
 
 	msg = &Message{
-		Event: EVENT_GAME,
+		Event:  EVENT_GAME,
 		Action: ACTION_START,
 	}
 	playerMaster.OnMessage(msg)
@@ -674,14 +674,14 @@ func TestReconnect(t *testing.T) {
 	newCitizen := NewPlayer()
 
 	msg := &Message{
-		Event: EVENT_GAME,
+		Event:  EVENT_GAME,
 		Action: ACTION_RECONNECT,
-		Data: map[string]interface{}{"game": float64(game.Id), "player": float64(citizen.Id())},
+		Data:   map[string]interface{}{"game": float64(game.Id), "player": float64(citizen.Id())},
 	}
 
 	newCitizen.OnMessage(msg)
 
-	if !newCitizen.ReceiveMessage(t, EVENT_NIGHT_RESULT, ACTION_OUT){
+	if !newCitizen.ReceiveMessage(t, EVENT_NIGHT_RESULT, ACTION_OUT) {
 		return
 	}
 }
