@@ -36,9 +36,9 @@ func init() {
 
 func main() {
 	r := mux.NewRouter()
-	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) { health(w, r) })
-	r.HandleFunc("/info", func(w http.ResponseWriter, r *http.Request) { info(w, r) })
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { ws(w, r) })
+	r.HandleFunc("/health", health)
+	r.HandleFunc("/info", info)
+	r.HandleFunc("/", ws)
 	http.Handle("/", r)
 	log.Debugf("Listen http://0.0.0.0:%d", *port)
 	err := http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", *port), nil)
