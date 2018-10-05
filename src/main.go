@@ -73,15 +73,17 @@ func info(w http.ResponseWriter, r *http.Request) {
 	if len(gameIds) > 0 {
 		gameId, err = strconv.Atoi(gameIds[0])
 		if err != nil {
-			w.Write([]byte("invalid game id"))
+			http.Error(w, "invalid game id", http.StatusBadRequest)
+			return
 		}
 	} else {
-		w.Write([]byte("param \"game\" can't be empty"))
+		http.Error(w, "param \"game\" can't be empty", http.StatusBadRequest)
+		return
 	}
 
 	game, ok := Games[gameId]
 	if !ok {
-		w.Write([]byte("invalid game id"))
+		http.Error(w, "invalid game id", http.StatusBadRequest)
 		return
 	}
 
