@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand"
 	"time"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -107,7 +108,7 @@ func (e *Event) Action(players *Players, history *EventHistory, player *Player, 
 
 /*
 	EventChoice
- */
+*/
 type IEventChoice interface {
 	SetChoice(choice *Player)
 	Choice() *Player
@@ -127,7 +128,7 @@ func (e *EventChoice) Choice() *Player {
 
 /*
 	EventVote
- */
+*/
 
 type IEventVote interface {
 	AddVoted(player *Player, vote *Player)
@@ -186,7 +187,7 @@ func (e *EventVote) Candidate() *Player {
 
 /*
 	EventQueue
- */
+*/
 type EventQueue struct {
 	data []IEvent
 }
@@ -220,7 +221,7 @@ func (e *EventQueue) Clear() {
 
 /*
 	EventHistory
- */
+*/
 type EventHistory struct {
 	data []IEvent
 }
@@ -266,7 +267,7 @@ func (e *EventHistory) FindEventVote(eventName string, iteration int) IEventVote
 
 /*
 AcceptEvent
- */
+*/
 type AcceptEvent struct {
 	Event
 	accepted []*Player
@@ -331,7 +332,7 @@ func (event *AcceptEvent) AcceptAction(players *Players, history *EventHistory, 
 
 /*
  CourtEvent
- */
+*/
 type CourtEvent struct {
 	Event
 	EventVote
@@ -402,7 +403,7 @@ func (event *CourtEvent) VoteAction(players *Players, history *EventHistory, pla
 
 /*
 CourtResult
- */
+*/
 type CourtResultEvent struct {
 	Event
 	AcceptEvent
@@ -492,7 +493,7 @@ func (event *CourtResultEvent) AcceptAction(players *Players, history *EventHist
 
 /*
 DoctorEvent
- */
+*/
 type DoctorEvent struct {
 	Event
 	EventChoice
@@ -580,7 +581,7 @@ func (event *DoctorEvent) ChoiceAction(players *Players, history *EventHistory, 
 
 /*
 GameEvent
- */
+*/
 type GameEvent struct {
 	Event
 }
@@ -622,7 +623,6 @@ func (event *GameEvent) CreateAction(players *Players, history *EventHistory, pl
 
 	return nil
 }
-
 
 func (event *GameEvent) JoinAction(players *Players, history *EventHistory, player *Player, msg *Message) error {
 
@@ -696,7 +696,7 @@ func (event *GameEvent) StartAction(players *Players, history *EventHistory, pla
 
 /*
 GirlEvent
- */
+*/
 type GirlEvent struct {
 	Event
 	EventChoice
@@ -783,7 +783,7 @@ func (event *GirlEvent) ChoiceAction(players *Players, history *EventHistory, pl
 
 /*
 GreetCitizensEvent
- */
+*/
 type GreetCitizensEvent struct {
 	Event
 	AcceptEvent
@@ -847,25 +847,25 @@ func (event *GreetCitizensEvent) getRoles(playersCount int) []int {
 	doctor := 0
 	citizens := 0
 
-	switch (true) {
+	switch true {
 	case playersCount >= 5:
 		mafia = int(math.Floor(float64(playersCount / 3)))
 		girl = 1
 		sheriff = 1
 		doctor = 1
 		citizens = playersCount - (girl + sheriff + doctor + mafia)
-		break;
+		break
 	case playersCount == 3:
 		mafia = 1
 		doctor = 1
 		citizens = 1
-		break;
+		break
 	case playersCount == 4:
 		mafia = 1
 		girl = 1
 		doctor = 1
 		citizens = 1
-		break;
+		break
 	}
 
 	for i := 1; i <= mafia; i++ {
@@ -893,7 +893,7 @@ func (event *GreetCitizensEvent) getRoles(playersCount int) []int {
 
 /*
 GreetMafiaEvent
- */
+*/
 type GreetMafiaEvent struct {
 	Event
 	AcceptEvent
@@ -945,7 +945,7 @@ func (event *GreetMafiaEvent) AcceptAction(players *Players, history *EventHisto
 
 /*
 MafiaEvent
- */
+*/
 type MafiaEvent struct {
 	Event
 	EventVote
@@ -1055,7 +1055,7 @@ func (event *MafiaEvent) VoteAction(players *Players, history *EventHistory, pla
 
 /*
 NightResultEvent
- */
+*/
 type NightResultEvent struct {
 	Event
 	AcceptEvent
@@ -1149,7 +1149,7 @@ func (event *NightResultEvent) AcceptAction(players *Players, history *EventHist
 
 /*
 SheriffEvent
- */
+*/
 type SheriffEvent struct {
 	Event
 	EventChoice
@@ -1226,7 +1226,7 @@ func (event *SheriffEvent) ChoiceAction(players *Players, history *EventHistory,
 
 /*
 SheriffResultEvent
- */
+*/
 type SheriffResultEvent struct {
 	Event
 }
@@ -1282,7 +1282,7 @@ func (event *SheriffResultEvent) AcceptAction(players *Players, history *EventHi
 
 /*
 GameOverEvent
- */
+*/
 type GameOverEvent struct {
 	Event
 	AcceptEvent

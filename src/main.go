@@ -1,18 +1,19 @@
 package main
 
 import (
+	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
-	"encoding/json"
-	"github.com/gorilla/mux"
-	log "github.com/sirupsen/logrus"
 	"runtime"
-	"time"
 	"runtime/debug"
-	"github.com/gorilla/websocket"
 	"strconv"
-	"flag"
+	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
 )
 
 type LogFormatter struct{}

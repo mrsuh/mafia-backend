@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"time"
 	"math/rand"
+	"time"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -40,8 +41,8 @@ func (game *Game) Run() {
 
 func (game *Game) isOver() bool {
 
-	if  game.Event.Name() == EVENT_GAME ||
-	    game.Event.Name() == EVENT_GAME_START ||
+	if game.Event.Name() == EVENT_GAME ||
+		game.Event.Name() == EVENT_GAME_START ||
 		game.Event.Name() == EVENT_GREET_CITIZENS ||
 		game.Event.Name() == EVENT_GREET_MAFIA {
 		return false
@@ -91,7 +92,7 @@ func (game *Game) initEventQueue() error {
 			return nil
 		}
 
-		switch(eventName) {
+		switch eventName {
 		case EVENT_GAME:
 			queue.Push(NewAcceptEvent(game.Iteration, EVENT_GAME_START, ACTION_START))
 			return nil
@@ -182,7 +183,7 @@ func (game *Game) EventLoop() {
 			if err != nil {
 				log.Warningf("Event: %s, err: %v", game.Event.Name(), err)
 			}
-			break;
+			break
 		case PROCESSED:
 			game.SetNextEvent()
 			break
