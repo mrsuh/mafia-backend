@@ -79,7 +79,7 @@ func NewPlayer() *Player {
 func (p *Player) SendMessage(message *Message) {
 	defer func() {
 		if err := recover(); err != nil {
-			log.Errorf("Send message id: %d, err: %v", p.Id, err)
+			log.Errorf("Send message id: %d, err: %v", p.Id(), err)
 		}
 	}()
 
@@ -92,7 +92,7 @@ func (p *Player) SendMessage(message *Message) {
 	msg, err := json.Marshal(message)
 
 	if err != nil {
-		log.Errorf("Marshal message: id: %d, err: %v", p.Id, err)
+		log.Errorf("Marshal message: id: %d, err: %v", p.Id(), err)
 		return
 	}
 
@@ -184,7 +184,7 @@ func (p *Player) readLoop() {
 		msg := &Message{}
 		err = json.Unmarshal(message, msg)
 		if err != nil {
-			log.Errorf("error on msg decode {msg:%v, err:%v, id:%s", string(message), err, p.Id())
+			log.Errorf("error on msg decode {msg:%s, err:%v, id:%d", string(message), err, p.Id())
 			break
 		}
 
@@ -324,7 +324,7 @@ func (p *Player) OnMessage(msg *Message) {
 }
 
 func (p *Player) writeLoop() {
-	log.Debugf("writePump %d", p.Id)
+	log.Debugf("writePump %d", p.Id())
 	defer func() {
 
 		if err := recover(); err != nil {
