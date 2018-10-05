@@ -74,10 +74,11 @@ func info(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.Write([]byte("invalid game id"))
 		}
+	} else {
+		w.Write([]byte("param \"game\" can't be empty"))
 	}
 
 	game, ok := Games[gameId]
-
 	if !ok {
 		w.Write([]byte("invalid game id"))
 		return
