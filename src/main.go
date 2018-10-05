@@ -51,22 +51,22 @@ func main() {
 func health(w http.ResponseWriter, r *http.Request) {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
-	health, err := json.Marshal(map[string]interface{}{
+	health := map[string]interface{}{
 		"runtime.NumGoroutine":        runtime.NumGoroutine(),
 		"runtime.MemStats.Alloc":      memStats.Alloc,
 		"runtime.MemStats.TotalAlloc": memStats.TotalAlloc,
 		"runtime.MemStats.Sys":        memStats.Sys,
 		"runtime.MemStats.NumGC":      memStats.NumGC,
-	})
+	}
 
+	w.Header().Set("Content-Type", "application/json")
+	err := json.NewEncoder(w).Encode(health)
 	if err != nil {
 		log.Errorf("Health error: %v", err)
 	}
-	w.Write(health)
 }
 
 func info(w http.ResponseWriter, r *http.Request) {
-
 	gameIds := r.URL.Query()["game"]
 	gameId := 0
 	var err error
@@ -106,16 +106,14 @@ func info(w http.ResponseWriter, r *http.Request) {
 		"players":      playersInfo,
 	}
 
-	response, err := json.Marshal(info)
-
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(info)
 	if err != nil {
 		log.Errorf("Info controller error: %v", err)
 	}
-	w.Write(response)
 }
 
 func ws(w http.ResponseWriter, r *http.Request) {
-
 	defer func() {
 		log.Infof("CLOSE serverWS")
 	}()
